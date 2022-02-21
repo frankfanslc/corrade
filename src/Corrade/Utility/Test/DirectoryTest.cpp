@@ -687,8 +687,8 @@ void DirectoryTest::mkpathNoPermission() {
         CORRADE_VERIFY(!Directory::mkpath("W:/nope"));
     }
 
-    /* On Windows we cannot ensure messages are printed in a certain
-     * language, as they depend on the user's installed languages */
+    /* On Windows we cannot ensure messages are printed in a certain language,
+       as they depend on the user's installed languages */
     const std::string output = out.str();
     CORRADE_COMPARE(output.substr(0, 49),
         "Utility::Directory::mkpath(): error creating W:: ");
@@ -1147,7 +1147,7 @@ void DirectoryTest::listUtf8() {
 constexpr const char Data[]{'\xCA', '\xFE', '\xBA', '\xBE', '\x0D', '\x0A', '\x00', '\xDE', '\xAD', '\xBE', '\xEF'};
 
 void DirectoryTest::fileSize() {
-    /* Existing file, containing  */
+    /* Existing file, containing the above data */
     CORRADE_COMPARE(Directory::fileSize(Directory::join(_testDir, "file")),
         Containers::arraySize(Data));
 }
@@ -1187,7 +1187,7 @@ void DirectoryTest::fileSizeEarlyEof() {
 
 void DirectoryTest::fileSizeNonexistent() {
     std::ostringstream out;
-    Error err{&out};
+    Error redirectError{&out};
     CORRADE_COMPARE(Directory::fileSize("nonexistent"), Containers::NullOpt);
     CORRADE_COMPARE(out.str(), "Utility::Directory::fileSize(): can't open nonexistent\n");
 }
@@ -1243,7 +1243,7 @@ void DirectoryTest::readEarlyEof() {
 
 void DirectoryTest::readNonexistent() {
     std::ostringstream out;
-    Error err{&out};
+    Error redirectError{&out};
     CORRADE_VERIFY(!Directory::read("nonexistent"));
     CORRADE_COMPARE(out.str(), "Utility::Directory::read(): can't open nonexistent\n");
 
@@ -1287,8 +1287,7 @@ void DirectoryTest::writeNoPermission() {
         CORRADE_SKIP("Running under root, can't test for permissions.");
 
     std::ostringstream out;
-    Error err{&out};
-
+    Error redirectError{&out};
     CORRADE_VERIFY(!Directory::write("/root/writtenFile", nullptr));
     CORRADE_COMPARE(out.str(), "Utility::Directory::write(): can't open /root/writtenFile\n");
 }
@@ -1373,35 +1372,29 @@ void DirectoryTest::prepareFileToCopy() {
 }
 
 void DirectoryTest::copy() {
-    CORRADE_VERIFY(Directory::exists(Directory::join(_writeTestDir, "copySource.dat")));
-
-    CORRADE_VERIFY(Directory::copy(
-        Directory::join(_writeTestDir, "copySource.dat"),
-        Directory::join(_writeTestDir, "copyDestination.dat")));
-
-    CORRADE_COMPARE_AS(
-        Directory::join(_writeTestDir, "copySource.dat"),
-        Directory::join(_writeTestDir, "copyDestination.dat"),
-        TestSuite::Compare::File);
+    const std::string source = Directory::join(_writeTestDir, "copySource.dat");
+    const std::string destination = Directory::join(_writeTestDir, "copyDestination.dat");
+    CORRADE_VERIFY(Directory::exists(source));
+    CORRADE_VERIFY(Directory::copy(source, destination));
+    CORRADE_COMPARE_AS(source, destination, TestSuite::Compare::File);
 }
 
 void DirectoryTest::copyEmpty() {
-    std::string input = Directory::join(_testDir, "dir/dummy");
-    CORRADE_VERIFY(Directory::exists(input));
+    std::string source = Directory::join(_testDir, "dir/dummy");
+    CORRADE_VERIFY(Directory::exists(source));
 
-    std::string output = Directory::join(_writeTestDir, "empty");
-    if(Directory::exists(output)) CORRADE_VERIFY(Directory::rm(output));
-    CORRADE_VERIFY(Directory::copy(input, output));
-    CORRADE_COMPARE_AS(output, "",
+    std::string destination = Directory::join(_writeTestDir, "empty");
+    if(Directory::exists(destination)) CORRADE_VERIFY(Directory::rm(destination));
+
+    CORRADE_VERIFY(Directory::copy(source, destination));
+    CORRADE_COMPARE_AS(destination, "",
         TestSuite::Compare::FileToString);
 }
 
 void DirectoryTest::copyNonexistent() {
     std::ostringstream out;
-    {
-        Error redirectError{&out};
-        CORRADE_VERIFY(!Directory::copy("nonexistent", Directory::join(_writeTestDir, "empty")));
-    }
+    Error redirectError{&out};
+    CORRADE_VERIFY(!Directory::copy("nonexistent", Directory::join(_writeTestDir, "empty")));
     CORRADE_COMPARE(out.str(), "Utility::Directory::copy(): can't open nonexistent\n");
 }
 
@@ -1410,10 +1403,8 @@ void DirectoryTest::copyNoPermission() {
         CORRADE_SKIP("Running under root, can't test for permissions.");
 
     std::ostringstream out;
-    {
-        Error err{&out};
-        CORRADE_VERIFY(!Directory::copy(Directory::join(_testDir, "dir/dummy"), "/root/writtenFile"));
-    }
+    Error redirectError{&out};
+    CORRADE_VERIFY(!Directory::copy(Directory::join(_testDir, "dir/dummy"), "/root/writtenFile"));
     CORRADE_COMPARE(out.str(), "Utility::Directory::copy(): can't open /root/writtenFile\n");
 }
 
@@ -1479,7 +1470,7 @@ void DirectoryTest::map() {
     std::string data{"\xCA\xFE\xBA\xBE\x0D\x0A\x00\xDE\xAD\xBE\xEF", 11};
     std::string file = Directory::join(_writeTestDir, "mappedFile");
     if(Directory::exists(file)) CORRADE_VERIFY(Directory::rm(file));
-    Directory::writeString(file, data);
+    CORRADE_VERIFY(Directory::writeString(file, data));
 
     {
         Containers::Array<char, Directory::MapDeleter> mappedFile = Directory::map(file);
@@ -1507,7 +1498,7 @@ void DirectoryTest::mapEmpty() {
     #if defined(CORRADE_TARGET_UNIX) || (defined(CORRADE_TARGET_WINDOWS) && !defined(CORRADE_TARGET_WINDOWS_RT))
     std::string file = Directory::join(_writeTestDir, "mappedEmpty");
     if(Directory::exists(file)) CORRADE_VERIFY(Directory::rm(file));
-    Directory::write(file, nullptr);
+    CORRADE_VERIFY(Directory::write(file, nullptr));
 
     {
         Containers::Array<char, Directory::MapDeleter> mappedFile = Directory::map(file);
@@ -1529,12 +1520,10 @@ void DirectoryTest::mapEmpty() {
 
 void DirectoryTest::mapNonexistent() {
     #if defined(CORRADE_TARGET_UNIX) || (defined(CORRADE_TARGET_WINDOWS) && !defined(CORRADE_TARGET_WINDOWS_RT))
-    {
-        std::ostringstream out;
-        Error err{&out};
-        CORRADE_VERIFY(!Directory::map("nonexistent"));
-        CORRADE_COMPARE(out.str(), "Utility::Directory::map(): can't open nonexistent\n");
-    }
+    std::ostringstream out;
+    Error redirectError{&out};
+    CORRADE_VERIFY(!Directory::map("nonexistent"));
+    CORRADE_COMPARE(out.str(), "Utility::Directory::map(): can't open nonexistent\n");
     #else
     CORRADE_SKIP("Not implemented on this platform.");
     #endif
@@ -1583,7 +1572,7 @@ void DirectoryTest::mapReadNonexistent() {
     #if defined(CORRADE_TARGET_UNIX) || (defined(CORRADE_TARGET_WINDOWS) && !defined(CORRADE_TARGET_WINDOWS_RT))
     {
         std::ostringstream out;
-        Error err{&out};
+        Error redirectError{&out};
         CORRADE_VERIFY(!Directory::mapRead("nonexistent"));
         CORRADE_COMPARE(out.str(), "Utility::Directory::mapRead(): can't open nonexistent\n");
     }
@@ -1641,13 +1630,10 @@ void DirectoryTest::mapWriteNoPermission() {
     if(Directory::home() == "/root")
         CORRADE_SKIP("Running under root, can't test for permissions.");
 
-    {
-        std::ostringstream out;
-        Error err{&out};
-        Containers::Array<char, Directory::MapDeleter> mappedFile = Directory::mapWrite("/root/mappedFile", 64);
-        CORRADE_VERIFY(!mappedFile);
-        CORRADE_COMPARE(out.str(), "Utility::Directory::mapWrite(): can't open /root/mappedFile\n");
-    }
+    std::ostringstream out;
+    Error redirectError{&out};
+    CORRADE_VERIFY(!Directory::mapWrite("/root/mappedFile", 64));
+    CORRADE_COMPARE(out.str(), "Utility::Directory::mapWrite(): can't open /root/mappedFile\n");
     #else
     CORRADE_SKIP("Not implemented on this platform.");
     #endif
