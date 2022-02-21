@@ -1149,7 +1149,7 @@ void DirectoryTest::fileSize() {
 void DirectoryTest::fileSizeEmpty() {
     const std::string empty = Directory::join(_testDir, "dir/dummy");
     CORRADE_VERIFY(Directory::exists(empty));
-    CORRADE_VERIFY(!Directory::read(empty));
+    CORRADE_COMPARE(Directory::fileSize(empty), 0);
 }
 
 void DirectoryTest::fileSizeNonSeekable() {
