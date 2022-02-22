@@ -4,7 +4,6 @@
     Copyright © 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
                 2017, 2018, 2019, 2020, 2021, 2022
               Vladimír Vondruš <mosra@centrum.cz>
-    Copyright © 2020 Jonathan Hale <squareys@googlemail.com>
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the "Software"),
@@ -25,36 +24,47 @@
     DEALINGS IN THE SOFTWARE.
 */
 
-#include "WindowsError.h"
+#include "Corrade/TestSuite/Tester.h"
+#include "Corrade/Utility/DebugStl.h"
+#include "Corrade/Utility/Implementation/ErrorString.h"
 
-#include <string>
-
-#include "Corrade/Utility/Unicode.h"
-#include "Corrade/Containers/ScopeGuard.h"
-
-#define WIN32_LEAN_AND_MEAN 1
-#define VC_EXTRALEAN
+#ifdef CORRADE_TARGET_WINDOWS
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
+#endif
 
-namespace Corrade { namespace Utility { namespace Implementation {
+namespace Corrade { namespace Utility { namespace Test { namespace {
 
-std::string windowsErrorString(unsigned int errorCode) {
-    WCHAR* errorStringW = nullptr;
-    FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_ALLOCATE_BUFFER,
-        nullptr, errorCode, 0, reinterpret_cast<LPWSTR>(&errorStringW),
-        0, nullptr);
-    Containers::ScopeGuard e{errorStringW,
-        #ifdef CORRADE_MSVC2015_COMPATIBILITY
-        /* MSVC 2015 is unable to cast the parameter for LocalFree */
-        [](WCHAR* p){ LocalFree(p); }
-        #else
-        LocalFree
-        #endif
-    };
+struct ErrorStringTest: TestSuite::Tester {
+    explicit ErrorStringTest();
 
-    /* Convert to UTF-8 and cut off final newline that FormatMessages adds */
-    return Unicode::narrow(Containers::arrayView<const wchar_t>(errorStringW,
-        wcslen(errorStringW)).except(1));
+    #ifdef CORRADE_TARGET_WINDOWS
+    void windowsString();
+    #endif
+};
+
+ErrorStringTest::ErrorStringTest() {
+    #ifdef CORRADE_TARGET_WINDOWS
+    addTests({&ErrorStringTest::windowsString});
+    #endif
 }
 
-}}}
+#ifdef CORRADE_TARGET_WINDOWS
+void ErrorStringTest::windowsString() {
+    std::string string = Implementation::windowsErrorString(ERROR_FILE_NOT_FOUND);
+    CORRADE_INFO("ERROR_FILE_NOT_FOUND error string is:" << string);
+
+    /* FFS DO YOU HAVE TO YELL AT ME??? */
+    const LANGID usEnglish = MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US);
+    if(GetUserDefaultLangID() != usEnglish)
+        CORRADE_SKIP("User language is not US English, can't test");
+
+    CORRADE_COMPARE(string, "The system cannot find the file specified.");
+}
+#endif
+
+}}}}
+
+CORRADE_TEST_MAIN(Corrade::Utility::Test::ErrorStringTest)
