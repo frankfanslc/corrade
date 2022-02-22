@@ -30,11 +30,13 @@
 #include "Corrade/Containers/Array.h"
 #include "Corrade/Containers/Optional.h"
 #include "Corrade/Containers/ScopeGuard.h"
+#include "Corrade/Containers/StringStl.h"
 #include "Corrade/TestSuite/Tester.h"
 #include "Corrade/TestSuite/Compare/Container.h"
 #include "Corrade/TestSuite/Compare/File.h"
 #include "Corrade/TestSuite/Compare/FileToString.h"
 #include "Corrade/TestSuite/Compare/Numeric.h"
+#include "Corrade/TestSuite/Compare/String.h"
 #include "Corrade/TestSuite/Compare/SortedContainer.h"
 #include "Corrade/Utility/DebugStl.h"
 #include "Corrade/Utility/Directory.h"
@@ -688,10 +690,12 @@ void DirectoryTest::mkpathNoPermission() {
     }
 
     /* On Windows we cannot ensure messages are printed in a certain language,
-       as they depend on the user's installed languages */
+       as they depend on the user's installed languages. So verify just a
+       prefix. */
     const std::string output = out.str();
-    CORRADE_COMPARE(output.substr(0, 49),
-        "Utility::Directory::mkpath(): error creating W:: ");
+    CORRADE_COMPARE_AS(output,
+        "Utility::Directory::mkpath(): error creating W:: ",
+        TestSuite::Compare::StringHasPrefix);
     /* Check that there's just one newline at the end, not two */
     CORRADE_COMPARE(output.find('\n'), output.size() - 1);
     #endif
